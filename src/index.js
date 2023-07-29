@@ -32,4 +32,23 @@ dbConn()
     server.listen(port, () => console.log('Server Up na porta %s', port));
   });
 
-module.exports = io;
+io.on('connection', (socket) => {
+  const { roomId } = socket.handshake.query;
+  console.log('Socket id :: %s :: room :: %s ::', socket.id, roomId);
+
+  if (roomId) {
+    socket.join(roomId);
+  }
+
+  socket.on('room-game', (data) => {
+    console.log('Data ::: ', data);
+    io.in(roomId).emit('room-chat', data);
+  });
+
+  socket.on('disconnect', async (reason) => {
+    console.log(reason, `<::: ${socket.id} ::<`);
+    socket.leave(roomId);
+    const sockets = await io.in(roomId).fetchSockets();
+    console.log(sockets.lenght);
+  });
+});
