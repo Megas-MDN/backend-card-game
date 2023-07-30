@@ -33,22 +33,23 @@ dbConn()
   });
 
 io.on('connection', (socket) => {
-  const { roomId } = socket.handshake.query;
+  const { roomId, player } = socket.handshake.query;
   console.log('Socket id :: %s :: room :: %s ::', socket.id, roomId);
 
-  if (roomId) {
+  if (roomId && player) {
+    console.log(player);
     socket.join(roomId);
   }
 
   socket.on('room-game', (data) => {
     console.log('Data ::: ', data);
-    io.in(roomId).emit('room-chat', data);
+    io.in(roomId).emit('room-game', data);
   });
 
   socket.on('disconnect', async (reason) => {
     console.log(reason, `<::: ${socket.id} ::<`);
     socket.leave(roomId);
     const sockets = await io.in(roomId).fetchSockets();
-    console.log(sockets.lenght);
+    console.log(sockets.length);
   });
 });
