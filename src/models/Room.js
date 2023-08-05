@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const schema = new mongoose.Schema({
   name: { required: true, type: String, unique: true },
+  gameInProgress: { type: Boolean, default: false },
   players: {
     type: [{ socketId: String, cards: Array, name: String }],
     default: [],

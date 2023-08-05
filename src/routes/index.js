@@ -4,8 +4,10 @@ const game = require('../controllers/gameController');
 
 const routes = require('express').Router();
 
-routes.get('/:roomId', game.joinRoom);
-routes.post('/:roomId', game.createRoom);
+routes.get('/clear/:roomName', game.clearRoom);
+routes.get('/delete/:roomName', game.deleteRoom);
+routes.get('/:roomName', game.joinRoom);
+routes.post('/:roomName', game.createRoom);
 
 routes.use(notImplemented);
 routes.use(errorHandler);
