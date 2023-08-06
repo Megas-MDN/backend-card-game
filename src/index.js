@@ -6,6 +6,8 @@ const cors = require('cors');
 const dbConn = require('./models/connection');
 const routes = require('./routes');
 const roomService = require('./services/RoomService');
+const genCards = require('./utils/deck');
+const { trusted } = require('mongoose');
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -57,22 +59,77 @@ io.on('connection', (socket) => {
             player,
           });
         }
-        console.log(message);
       });
   }
 
   socket.on('room-game', (data) => {
-    console.log('Data ::: ', data);
+    // CHAT
     io.in(roomId).emit('room-game', data);
   });
 
   socket.on('start-game', () => {
-    console.log('Start Game ::: ', roomId);
-    message = 'Game started';
+    roomService.canStartGame(roomId).then(async (r) => {
+      if (!r) {
+        io.in(roomId).emit('alert', {
+          message: 'Game already in progress',
+          error: true,
+          player: false,
+        });
+        return;
+      }
+      message = 'Game started';
+      const sockets = await io.in(roomId).fetchSockets();
+      const cards = genCards({ nPlayers: sockets.length });
+      sockets.forEach(async (skt, i) => {
+        skt.emit('my-deck', { deck: cards.playersCards[i] });
+        await roomService.setDeckToPlayer({
+          roomId,
+          socketId: skt.id,
+          card: cards.playersCards[i],
+        });
+      });
+      const turn = await roomService.setPlayerToPlay({
+        roomId,
+        isRandom: true,
+      });
+
+      io.in(roomId).emit('alert', {
+        message,
+        error: false,
+        player: false,
+        gameOn: { on: true, turn: turn.name },
+      });
+      // set gameInprogress true ***
+      // gerar deck ***
+      // gravar & distribuir o deck ***
+      // enviar a lista de players e o player da vez */
+    });
+  });
+
+  socket.on('go-play', async (data) => {
+    // {card: {nipe, value}, mask: {nipe, value}}
+    const canPlayerPlay = await roomService.canPlayerPlay({
+      roomId,
+      socketId: socket.id,
+      checkHand: true,
+      card: data.card,
+    });
+    if (!canPlayerPlay) return;
+    const [turn] = await Promise.all([
+      roomService.setPlayerToPlay({
+        roomId,
+        nextToPLay: true,
+      }),
+      await roomService.setTableCards({
+        roomId,
+        card: { socketId: socket.id, mask: data.mask, card: data.card },
+      }),
+    ]);
+
     io.in(roomId).emit('alert', {
-      message,
-      error: false,
-      player: false,
+      message: 'Move done, go next',
+      moveDone: true,
+      turn: turn.name,
     });
   });
 
@@ -92,6 +149,7 @@ io.on('connection', (socket) => {
         }
       });
     const sockets = await io.in(roomId).fetchSockets();
+    if (sockets.length === 0) await roomService.clearPlayerInTheRoom(roomId);
     console.log(sockets.length);
   });
 });

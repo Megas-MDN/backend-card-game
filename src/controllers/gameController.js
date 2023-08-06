@@ -2,7 +2,23 @@ const Room = require('../models/Room');
 const roomService = require('../services/RoomService');
 
 const findRoomByName = async (name) =>
-  Room.findOne({ name }).select('_id players');
+  Room.findOne({ name }).select('_id players gameInProgress');
+
+const stopGame = async (req, res, next) => {
+  const { roomName } = req.params;
+  try {
+    const room = await Room.findOne({ name: roomName });
+    if (!room) return next({ status: 404, message: 'Room not found' });
+    room.gameInProgress = false;
+    await room.save();
+    return res.status(200).send({
+      message: `Game stoped ${roomName}`,
+      room,
+    });
+  } catch (error) {
+    return next({ message: error.message });
+  }
+};
 
 const deleteRoom = async (req, res, next) => {
   const { roomName } = req.params;
@@ -43,6 +59,7 @@ const joinRoom = async (req, res, next) => {
       message: `Join room ${roomName}`,
       room: room._id,
       players: room.players.map((p) => p.name),
+      gameInProgress: room.gameInProgress,
     });
   } catch (error) {
     return next({ message: error.message });
@@ -61,4 +78,26 @@ const createRoom = async (req, res, next) => {
   }
 };
 
-module.exports = { joinRoom, createRoom, clearRoom, deleteRoom };
+const cardsTable = async (req, res, next) => {
+  const { roomName } = req.params;
+  try {
+    const room = await Room.findOne({ name: roomName });
+    if (!room) return next({ status: 404, message: 'Room not found' });
+    const cards = room.table.map((card) => card?.mask);
+    return res.status(200).send({
+      message: 'Cards on the table',
+      cards,
+    });
+  } catch (error) {
+    return next({ message: error.message });
+  }
+};
+
+module.exports = {
+  joinRoom,
+  createRoom,
+  clearRoom,
+  deleteRoom,
+  stopGame,
+  cardsTable,
+};

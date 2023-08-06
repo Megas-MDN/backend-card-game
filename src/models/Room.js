@@ -7,6 +7,12 @@ const schema = new mongoose.Schema({
     type: [{ socketId: String, cards: Array, name: String }],
     default: [],
   },
+  table: { type: Array, default: [] },
+  bySideTable: { type: Array, default: [] },
+  goPlay: {
+    type: { socketId: String, name: String, index: Number },
+    default: {},
+  },
   actions: {
     type: Array,
     default: [],
