@@ -34,9 +34,9 @@ const canPlayerJoin = async ({ roomId, player, socketId }) => {
 const setDeckToPlayer = async ({ roomId, socketId, card }) => {
   try {
     const room = await Room.findById(roomId);
-    const playerInRoom = room.players.find((p) => p.socketId === socketId);
-    if (!playerInRoom) return false;
-    playerInRoom.cards = card;
+    const index = room.players.findIndex((p) => p.socketId === socketId);
+    if (index < 0) return false;
+    room.players[index].cards = card;
     await room.save();
     return true;
   } catch (error) {
@@ -144,6 +144,29 @@ const canPlayerPlay = async ({ roomId, socketId, checkHand = false, card }) => {
   }
 };
 
+const pushDeckOnPlayers = async ({
+  roomId,
+  deck,
+  residue,
+  inBySide = false,
+}) => {
+  try {
+    const room = await Room.findById(roomId);
+    if (!room) return null;
+    room.players = room.players.map((player, i) => ({
+      ...player,
+      cards: deck[i],
+    }));
+    const key = inBySide ? 'bySideTable' : 'table';
+    room[key] = residue;
+    await room.save();
+    return room.players;
+  } catch (error) {
+    console.log(error.message);
+    return null;
+  }
+};
+
 module.exports = {
   canPlayerJoin,
   removePlayer,
@@ -153,4 +176,5 @@ module.exports = {
   clearPlayerInTheRoom,
   setPlayerToPlay,
   canPlayerPlay,
+  pushDeckOnPlayers,
 };

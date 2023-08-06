@@ -80,14 +80,17 @@ io.on('connection', (socket) => {
       message = 'Game started';
       const sockets = await io.in(roomId).fetchSockets();
       const cards = genCards({ nPlayers: sockets.length });
-      sockets.forEach(async (skt, i) => {
-        skt.emit('my-deck', { deck: cards.playersCards[i] });
-        await roomService.setDeckToPlayer({
-          roomId,
-          socketId: skt.id,
-          card: cards.playersCards[i],
-        });
+      const decks = await roomService.pushDeckOnPlayers({
+        roomId,
+        deck: cards.playersCards,
+        residue: cards.otherCards,
       });
+      sockets.forEach((skt) => {
+        const deck = decks.find((d) => d.socketId === skt.id);
+        if (!deck) return;
+        skt.emit('my-deck', { deck: deck.cards });
+      });
+
       const turn = await roomService.setPlayerToPlay({
         roomId,
         isRandom: true,
@@ -99,10 +102,6 @@ io.on('connection', (socket) => {
         player: false,
         gameOn: { on: true, turn: turn.name },
       });
-      // set gameInprogress true ***
-      // gerar deck ***
-      // gravar & distribuir o deck ***
-      // enviar a lista de players e o player da vez */
     });
   });
 
@@ -127,7 +126,7 @@ io.on('connection', (socket) => {
     ]);
 
     io.in(roomId).emit('alert', {
-      message: 'Move done, go next',
+      message: `Move done, ${turn.name}`,
       moveDone: true,
       turn: turn.name,
     });
